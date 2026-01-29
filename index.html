@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electricity Consumption Usage</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root {
+    --primary: #1e3a8a;
+    --primary-dark: #1d4ed8;
+    --success: #15803d;
+    --danger: #b91c1c;
+    --bg-start: #f0f7ff;
+    --bg-end: #e0efff;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #475569;
+}
+
+/* RESET */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* BODY */
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: linear-gradient(180deg, var(--bg-start), var(--bg-end));
+    color: var(--text);
+}
+
+/* HEADER */
+header {
+    background: linear-gradient(90deg, #1e40af, #2563eb, #3b82f6);
+    color: white;
+    padding: 45px 20px;
+}
+
+.header-wrap {
+    max-width: 1200px;
+    margin: auto;
+}
+
+header h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+}
+
+header p {
+    margin-top: 10px;
+    opacity: 0.95;
+}
+
+/* NAV */
+nav {
+    background: white;
+    border-bottom: 1px solid #dbeafe;
+}
+
+nav ul {
+    display: flex;
+    justify-content: center;
+    list-style: none;
+    gap: 40px;
+    padding: 16px;
+}
+
+nav a {
+    text-decoration: none;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+nav a:hover {
+    color: var(--primary-dark);
+}
+
+/* SECTION */
+section {
+    max-width: 1200px;
+    margin: auto;
+    padding: 45px 20px;
+}
+
+/* KPI GRID */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 22px;
+}
+
+.kpi {
+    background: var(--card);
+    border-left: 6px solid var(--primary-dark);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 12px 28px rgba(30,64,175,0.12);
+}
+
+.kpi h3 {
+    font-size: 0.9rem;
+    color: var(--muted);
+}
+
+.kpi p {
+    font-size: 2.1rem;
+    font-weight: bold;
+    margin-top: 12px;
+}
+
+/* CARD */
+.card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 16px 35px rgba(30,64,175,0.12);
+    margin-bottom: 30px;
+}
+
+/* TABLE */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 22px;
+}
+
+th {
+    background: #dbeafe;
+    padding: 14px;
+    text-align: left;
+}
+
+td {
+    padding: 14px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.high {
+    color: var(--danger);
+    font-weight: bold;
+}
+
+.normal {
+    color: var(--success);
+    font-weight: bold;
+}
+
+/* CHART GRID */
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 30px;
+}
+
+/* FOOTER */
+footer {
+    text-align: center;
+    padding: 22px;
+    color: var(--muted);
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="header-wrap">
+        <h1>Electricity Consumption Usage</h1>
+        <p>Live & Trend-Based Power Monitoring Across Indian Cities</p>
+    </div>
+</header>
+
+<nav>
+    <ul>
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#table">Live Data</a></li>
+        <li><a href="#charts">Analytics</a></li>
+    </ul>
+</nav>
+
+<section id="overview">
+    <div class="kpi-grid">
+        <div class="kpi">
+            <h3>Total Cities</h3>
+            <p>6</p>
+        </div>
+        <div class="kpi">
+            <h3>Average Load (MW)</h3>
+            <p id="avgLoad">–</p>
+        </div>
+        <div class="kpi">
+            <h3>Highest Load City</h3>
+            <p id="topCity">–</p>
+        </div>
+    </div>
+</section>
+
+<section id="table">
+    <div class="card">
+        <h2>Live Power Consumption</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>City</th>
+                    <th>Usage (MW)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="data-table"></tbody>
+        </table>
+    </div>
+</section>
+
+<section id="charts">
+    <div class="chart-grid">
+        <div class="card">
+            <h3>City-wise Comparison</h3>
+            <canvas id="barChart"></canvas>
+        </div>
+        <div class="card">
+            <h3>Usage Distribution</h3>
+            <canvas id="pieChart"></canvas>
+        </div>
+        <div class="card">
+            <h3>Overall Consumption Trend</h3>
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+</section>
+
+<footer>
+    Electricity Consumption Dashboard | Academic Project
+</footer>
+
+<script>
+const cities = ["Hyderabad","Bengaluru","Chennai","Mumbai","Delhi","Kolkata"];
+const LIMIT = 350;
+let timeIndex = 0;
+const trendData = [];
+
+const table = document.getElementById("data-table");
+
+// BAR CHART
+const barChart = new Chart(document.getElementById("barChart"), {
+    type: "bar",
+    data: { labels: cities, datasets: [{ label: "MW", data: [] }] },
+    options: { scales: { y: { beginAtZero: true } } }
+});
+
+// PIE CHART WITH MULTI COLORS
+const pieChart = new Chart(document.getElementById("pieChart"), {
+    type: "pie",
+    data: {
+        labels: cities,
+        datasets: [{
+            data: [],
+            backgroundColor: [
+                "#2563eb",
+                "#16a34a",
+                "#f59e0b",
+                "#dc2626",
+                "#7c3aed",
+                "#0891b2"
+            ]
+        }]
+    }
+});
+
+// TREND CHART
+const trendChart = new Chart(document.getElementById("trendChart"), {
+    type: "line",
+    data: {
+        labels: [],
+        datasets: [{
+            label: "Average Load (MW)",
+            data: [],
+            tension: 0.4,
+            borderWidth: 3,
+            borderColor: "#2563eb",
+            fill: false
+        }]
+    },
+    options: { scales: { y: { beginAtZero: true } } }
+});
+
+function updateDashboard() {
+    let total = 0;
+    let max = 0;
+    let maxCity = "";
+
+    table.innerHTML = "";
+
+    const values = cities.map(city => {
+        const value = Math.floor(180 + Math.random() * 300);
+        total += value;
+        if (value > max) {
+            max = value;
+            maxCity = city;
+        }
+
+        table.innerHTML += `
+            <tr>
+                <td>${city}</td>
+                <td>${value}</td>
+                <td class="${value > LIMIT ? 'high' : 'normal'}">
+                    ${value > LIMIT ? 'High Load' : 'Normal'}
+                </td>
+            </tr>
+        `;
+        return value;
+    });
+
+    const avg = Math.round(total / cities.length);
+    document.getElementById("avgLoad").innerText = avg;
+    document.getElementById("topCity").innerText = maxCity;
+
+    barChart.data.datasets[0].data = values;
+    pieChart.data.datasets[0].data = values;
+
+    trendData.push(avg);
+    trendChart.data.labels.push("T" + (++timeIndex));
+    trendChart.data.datasets[0].data = trendData;
+
+    if (trendData.length > 10) {
+        trendData.shift();
+        trendChart.data.labels.shift();
+    }
+
+    barChart.update();
+    pieChart.update();
+    trendChart.update();
+}
+
+updateDashboard();
+setInterval(updateDashboard, 4000);
+</script>
+
+</body>
+</html>
